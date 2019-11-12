@@ -63,14 +63,14 @@ int k=0;							//for循环变量
 int limit =100  ;						//设置报警突变电流
 int sw=0;							//切换前后波形数据控制变量		
 int count=0;
-float amp_value=0.0;				//限制漏电电流转换为幅值有效值
+float amp_value=0.0;				//限制漏电电流转换为幅值有效�??
 float A=0.0;
 float B=0.0;
 float AB=0.0;
-float cos2=0.0;//互相关系数平方
+float cos2=0.0;//互相关系数平�?
 int zero = 33220;
 int reset4G =0;  //4g数据 接收超时重置标志
-int connect_confirm =0; //定时发送消息确保连接
+int connect_confirm =0; //定时发�?�消息确保连�?
 int alarm_message = 0;
 int time_out=0;
 int filter_len=5;
@@ -97,7 +97,7 @@ uint8_t	cAlmStr[] = "数据溢出(大于256)\r\n";
 								
 
 int tim_count=0;
-int start=0;						//第一次执行main函数 只采集了一个波形不做比较，用于第一次跳过比较
+int start=0;						//第一次执行main函数 只采集了�?个波形不做比较，用于第一次跳过比�?
 arm_cfft_radix4_instance_f32 scfft;
 //**********************************************ADC**********************//
 int filter11[5],filter21[5],filter31[5],filter41[5],filter51[5],filter61[5],filter71[5],filter81[5];
@@ -194,7 +194,7 @@ float output51[FFT_LENGTH];
 float output61[FFT_LENGTH];
 float output71[FFT_LENGTH];
 float output81[FFT_LENGTH];
-//********************************************频谱振幅最大值*******************************//
+//********************************************频谱振幅�?大�??*******************************//
 float max11=0;
 float max21=0;
 float max31=0;
@@ -314,26 +314,6 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
-	  //HAL_ADCEx_Calibration_Start(&hadc1,ADC_CALIB_OFFSET,ADC_DIFFERENTIAL_ENDED);
-  
- // HAL_TIM_Base_Start_IT(&htim1);
-  delay_init(400);
-  //HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);
-  HAL_UART_Receive_IT(&huart2, (uint8_t *)&aRxBuffer2,1);
-  HAL_UART_Receive_IT(&huart3, (uint8_t *)&aRxBuffer3, 1);
-  HAL_TIM_Base_Start_IT(&htim1);
-  arm_cfft_radix4_init_f32(&scfft,FFT_LENGTH,0,1);
-  delay_ms(1000);
-	filter_index = filter_len/2;
-  amp_value=(355*limit);			//限制漏电电流转换为波形有效幅值
-									//频谱幅值与波形有效值关系： 		波形有效值=频谱幅值*2/FFT_LEANGTH
-									//波形有效值与漏电电流关系：		ADC测得电压=参考电压(3.3)/(ADC分辨率/2)*波形有效值
-									//								互感器电流=ADC测得电压/负载电阻(内部负载电阻为70欧）
-									//								漏电电流=互感器电流*1000(1000为互感器的线圈比1000：1）
-									
-			
-
-	input_read = (GPIOH->IDR-->2)&0x0F;
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -394,7 +374,7 @@ int main(void)
 //			
 //		}
 
-//*******************************************************************继电器测试*************************************************//
+//*******************************************************************继电器测�?*************************************************//
 		
 //			HAL_GPIO_TogglePin(KM1_GPIO_Port,KM1_Pin);
 //		delay_ms(1000);
@@ -743,7 +723,7 @@ int main(void)
 //						for(i=0;i<1024;i++)printf("%f\r\n",input11[2*i]);	}
 //		else if(start){	printf("**************************************input0********************\r\n");
 //						for(i=0;i<1024;i++)printf("%f\r\n",input10[2*i]);}
-//*********************************************************相似度计算**********************************************************//
+//*********************************************************相似度计�?**********************************************************//
 		A1=A2=A3=A4=A5=A6=A7=A8=B1=B2=B3=B4=B5=B6=B7=B8=AB1=AB2=AB3=AB4=AB5=AB6=AB7=AB8=0;								
 		if(start){for(i=0;i<400;i++){	
 							A1+=(cut10[i]-zero)*(cut10[i]-zero);B1+=(cut11[i]-zero)*(cut11[i]-zero);AB1+=(cut10[i]-zero)*(cut11[i]-zero);
@@ -813,7 +793,7 @@ int main(void)
 //		else if(start){ 
 //				printf("**************************output0***********************\r\n");
 //				for(i=1;i<100;i++)printf("%f\r\n",output20[i]);}			
-////****************************************************频谱取最大值**************************************//			
+////****************************************************频谱取最大�??**************************************//			
 			if(sw){	Imax11=Imax21=Imax31=Imax41=Imax51=Imax61=Imax71=Imax81=0;
 					for(i=1;i<100;i++){	if(output11[i]>Imax11)Imax11=output11[i];
 										if(output21[i]>Imax21)Imax21=output21[i];
@@ -853,18 +833,18 @@ int main(void)
 						if((Imax70-Imax71)>amp_value)har7=(int)(Imax70-Imax71);
 						if((Imax80-Imax81)>amp_value)har8=(int)(Imax80-Imax81);}}
 	
-//		if(sw)	{	printf("漏电电流1：%fmA\t",Imax11/355);printf("突变电流：%fmA\r\n",(Imax11-Imax10)/355);}
+//		if(sw)	{	printf("漏电电流1�?%fmA\t",Imax11/355);printf("突变电流�?%fmA\r\n",(Imax11-Imax10)/355);}
 //		else if(start) 
-//				{printf("漏电电流0：%fmA\t",Imax10/355);printf("突变电流：%fmA\r\n",(Imax10-Imax11)/355);}
+//				{printf("漏电电流0�?%fmA\t",Imax10/355);printf("突变电流�?%fmA\r\n",(Imax10-Imax11)/355);}
 //				printf("%i\r\n",(int)HAL_GPIO_ReadPin(K1_GPIO_Port,K1_Pin));
 		
 //		if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);}
 				
-//		if(sw)	{	printf("漏电电流1：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);
-//					printf("突变电流：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax11-Imax10)/355,(Imax21-Imax20)/355,(Imax31-Imax30)/355,(Imax41-Imax40)/355,(Imax51-Imax50)/355,(Imax61-Imax60)/355,(Imax71-Imax70)/355,(Imax81-Imax80)/355);}
+//		if(sw)	{	printf("漏电电流1�?%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);
+//					printf("突变电流�?%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax11-Imax10)/355,(Imax21-Imax20)/355,(Imax31-Imax30)/355,(Imax41-Imax40)/355,(Imax51-Imax50)/355,(Imax61-Imax60)/355,(Imax71-Imax70)/355,(Imax81-Imax80)/355);}
 //		else if(start) 
-//				{	printf("漏电电流1：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);
-//					printf("突变电流：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax10-Imax11)/355,(Imax20-Imax21)/355,(Imax30-Imax31)/355,(Imax40-Imax41)/355,(Imax50-Imax51)/355,(Imax60-Imax61)/355,(Imax70-Imax71)/355,(Imax80-Imax81)/355);}
+//				{	printf("漏电电流1�?%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);
+//					printf("突变电流�?%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax10-Imax11)/355,(Imax20-Imax21)/355,(Imax30-Imax31)/355,(Imax40-Imax41)/355,(Imax50-Imax51)/355,(Imax60-Imax61)/355,(Imax70-Imax71)/355,(Imax80-Imax81)/355);}
 //		
 //		if(har1){	printf("**************************频谱12************************\r\n");
 //					for(i=1;i<100;i++)printf("%f\t%f\r\n",output11[i],output10[i]);
@@ -872,58 +852,58 @@ int main(void)
 		if((cos1<0.95f)&&har1){	flag1=1;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流11：%05i\t漏电电流10：%05i\t突变电流1：%05i",(int)Imax11/355,(int)Imax10/355,(har1/355));
+								printf("漏电电流11�?%05i\t漏电电流10�?%05i\t突变电流1�?%05i",(int)Imax11/355,(int)Imax10/355,(har1/355));
 								har1=0;}
 		if((cos2<0.9f)&&har2){	flag2=1;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流21：%05i\t漏电电流20：%05i\t突变电流2：%05i",(int)Imax21/355,(int)Imax20/355,har2/355);
+								printf("漏电电流21�?%05i\t漏电电流20�?%05i\t突变电流2�?%05i",(int)Imax21/355,(int)Imax20/355,har2/355);
 								har2=0;}
 									
 		if((cos3<0.9f)&&har3){	flag3=1;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流31：%05i\t漏电电流30：%05i\t突变电流3：%05i",(int)Imax31/355,(int)Imax30/355,har3/355);
+								printf("漏电电流31�?%05i\t漏电电流30�?%05i\t突变电流3�?%05i",(int)Imax31/355,(int)Imax30/355,har3/355);
 								har3=0;}
 		
 		if((cos4<0.9f)&&har4){	flag4=1;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流41：%05i\t漏电电流40：%05i\t突变电流4：%05i",(int)Imax41/355,(int)Imax40/355,har4/355);
+								printf("漏电电流41�?%05i\t漏电电流40�?%05i\t突变电流4�?%05i",(int)Imax41/355,(int)Imax40/355,har4/355);
 								har4=0;}
 							
 		if((cos5<0.9f)&&har5){	flag5=1;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流51：%05i\t漏电电流50：%05i\t突变电流5：%05i",(int)Imax51/355,(int)Imax50/355,har5/355);
+								printf("漏电电流51�?%05i\t漏电电流50�?%05i\t突变电流5�?%05i",(int)Imax51/355,(int)Imax50/355,har5/355);
 								har5=0;}
 							
 		if((cos6<0.9f)&&har6){	flag6=1;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流61：%05i\t漏电电流60：%05i\t突变电流6：%05i",(int)Imax61/355,(int)Imax60/355,har6/355);
+								printf("漏电电流61�?%05i\t漏电电流60�?%05i\t突变电流6�?%05i",(int)Imax61/355,(int)Imax60/355,har6/355);
 								har6=0;}
 								
 		if((cos7<0.9f)&&har7){	flag7=1;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流71：%05i\t漏电电流70：%05i\t突变电流7：%05i",(int)Imax71/355,(int)Imax70/355,har7/355);
+								printf("漏电电流71�?%05i\t漏电电流70�?%05i\t突变电流7�?%05i",(int)Imax71/355,(int)Imax70/355,har7/355);
 								har7=0;}
 								
 		if((cos8<0.9f)&&har8){	flag8=1;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流81：%05i\t漏电电流80：%05i\t突变电流8：%05i",(int)Imax81/355,(int)Imax80/355,har8/355);
+								printf("漏电电流81�?%05i\t漏电电流80�?%05i\t突变电流8�?%05i",(int)Imax81/355,(int)Imax80/355,har8/355);
 								har8=0;}
 		
 								
 								
 												
-		if(connect_confirm >30){printf("AT+CIPSEND=1,15,\"219.128.73.196\",20030\r\n");										//30秒发送一次数据
+		if(connect_confirm >30){printf("AT+CIPSEND=1,15,\"219.128.73.196\",20030\r\n");										//30秒发送一次数�?
 								delay_ms(100);
 								printf("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i",flag1,flag2,flag3,flag4,flag5,flag6,flag7,flag8);
 								connect_confirm=0;}
-		if(time_out>120){//HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);												//超时（120秒）时重置4G模块
+		if(time_out>120){//HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);												//超时�?120秒）时重�?4G模块
 						delay_ms(100);
 						HAL_GPIO_WritePin(reset_4G_GPIO_Port,reset_4G_Pin,GPIO_PIN_SET);
 						delay_ms(100);
@@ -1472,10 +1452,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 									else{
 										Uart2_RxBuff[Uart2_Rx_Cnt++] = aRxBuffer2;   //接收数据转存
 										if(aRxBuffer2==0x06)	time_out=0;
-										if((Uart2_RxBuff[Uart2_Rx_Cnt-1] == 0x0A)&&(Uart2_RxBuff[Uart2_Rx_Cnt-2] == 0x0D)) //判断结束位
+										if((Uart2_RxBuff[Uart2_Rx_Cnt-1] == 0x0A)&&(Uart2_RxBuff[Uart2_Rx_Cnt-2] == 0x0D)) //判断结束�?
 										{	
 //											HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);
-//											HAL_UART_Transmit(&huart3, (uint8_t *)&Uart2_RxBuff, Uart2_Rx_Cnt,0xFFFF);//将串口2收到的信息发送到485串口
+//											HAL_UART_Transmit(&huart3, (uint8_t *)&Uart2_RxBuff, Uart2_Rx_Cnt,0xFFFF);//将串�?2收到的信息发送到485串口
 //											HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_RESET);
 											if((Uart2_RxBuff[0] == 0x50)||(Uart2_RxBuff[1] == 0x42))SET4G();// 判断接收的消息为 PB DONE 时初始化4G模块
 											Uart2_Rx_Cnt = 0;
@@ -1483,7 +1463,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 										}
 									}
 
-									HAL_UART_Receive_IT(&huart2, (uint8_t *)&aRxBuffer2, 1);}   //再开启接收中断
+									HAL_UART_Receive_IT(&huart2, (uint8_t *)&aRxBuffer2, 1);}   //再开启接收中�?
 //	if(huart->Instance == USART3){if(Uart3_Rx_Cnt >= 255)  //溢出判断
 //									{
 //										Uart3_Rx_Cnt = 0;
@@ -1493,9 +1473,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 //									else
 //									{
 //										Uart3_RxBuff[Uart3_Rx_Cnt++] = aRxBuffer3;   //接收数据转存
-//										if((Uart3_RxBuff[Uart3_Rx_Cnt-1] == 0x0A)&&(Uart3_RxBuff[Uart3_Rx_Cnt-2] == 0x0D)) //判断结束位
+//										if((Uart3_RxBuff[Uart3_Rx_Cnt-1] == 0x0A)&&(Uart3_RxBuff[Uart3_Rx_Cnt-2] == 0x0D)) //判断结束�?
 //										{
-//											HAL_UART_Transmit(&huart2, (uint8_t *)&Uart3_RxBuff, Uart3_Rx_Cnt,0xFFFF);//将485串口收到的信息发送到串口2
+//											HAL_UART_Transmit(&huart2, (uint8_t *)&Uart3_RxBuff, Uart3_Rx_Cnt,0xFFFF);//�?485串口收到的信息发送到串口2
 //											Uart3_Rx_Cnt = 0;
 //											memset(Uart3_RxBuff,0x00,sizeof(Uart3_RxBuff)); //清空数组
 //										}
@@ -1530,7 +1510,7 @@ int get_ADC(ADC_HandleTypeDef adc){
 }
 
 
-//*********************************************中值**************************************//
+//*********************************************中�??**************************************//
 int filter_M(int *filter,int len){
 	sort(filter,len);
 	return filter[len/2];
