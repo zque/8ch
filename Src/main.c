@@ -23,13 +23,15 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//USE_HAL_DRIVER, STM32H743xx,ARM_MATH_CM7,__CC_ARM,ARM_MATH_MATRIX_CHECK,ARM_MATH_ROUNDING  鍔犲叆姝よ瀹忓畾涔夊惎鐢‵FT绠楁硶
-#include "printf.h"
+//USE_HAL_DRIVER, STM32H743xx,ARM_MATH_CM7,__CC_ARM,ARM_MATH_MATRIX_CHECK,ARM_MATH_ROUNDING  加入此行宏定义启用FFT算法
+//#include "printf.h"
+#include <stdio.h>
+#include <string.h>
 #include "sys.h"
 #include "delay.h"
 #include "arm_math.h"
 #define FFT_LENGTH 		1024
-
+#define bee				HAL_GPIO_To
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,20 +59,21 @@ UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
-int i=0;							//for寰幆鍙橀噺
-int j=0;							//for寰幆鍙橀噺
-int k=0;							//for寰幆鍙橀噺
-int limit =100  ;						//璁剧疆鎶ヨ绐佸彉鐢垫祦
-int sw=0;							//鍒囨崲鍓嶅悗娉㈠舰鏁版嵁鎺у埗鍙橀噺		
+/* Private variables ---------------------------------------------------------*/
+int i=0;							//for循环变量
+int j=0;							//for循环变量
+int k=0;							//for循环变量
+int limit =100  ;						//设置报警突变电流
+int sw=0;							//切换前后波形数据控制变量		
 int count=0;
-float amp_value=0.0;				//闄愬埗婕忕數鐢垫祦杞崲涓哄箙鍊兼湁鏁堝??
+float amp_value=0.0;				//限制漏电电流转换为幅值有效值
 float A=0.0;
 float B=0.0;
 float AB=0.0;
-float cos2=0.0;//浜掔浉鍏崇郴鏁板钩鏂?
+float cos2=0.0;//互相关系数平方
 int zero = 33220;
-int reset4G =0;  //4g鏁版嵁 鎺ユ敹瓒呮椂閲嶇疆鏍囧織
-int connect_confirm =0; //瀹氭椂鍙戦?佹秷鎭‘淇濊繛鎺?
+int reset4G =0;  //4g数据 接收超时重置标志
+int connect_confirm =0; //定时发送消息确保连接
 int alarm_message = 0;
 int time_out=0;
 int filter_len=5;
@@ -78,6 +81,9 @@ int limit_A =300;
 int filter_index = 0;
 int beep_flag=0;
 int led_flag=0;
+int adc1[1030];
+int adc0[1030];
+int printf_flag=1;
 uint8_t input_read ;
 
 //struct {
@@ -86,46 +92,46 @@ uint8_t input_read ;
 //}sw_input;
 
 
-uint8_t aRxBuffer2;			//鎺ユ敹涓柇缂撳啿
-uint8_t Uart2_RxBuff[256];		//鎺ユ敹缂撳啿
-uint8_t Uart2_Rx_Cnt = 0;		//鎺ユ敹缂撳啿璁℃暟
+uint8_t aRxBuffer2;			//接收中断缓冲
+uint8_t Uart2_RxBuff[256];		//接收缓冲
+uint8_t Uart2_Rx_Cnt = 0;		//接收缓冲计数
 
-uint8_t aRxBuffer3;			//鎺ユ敹涓柇缂撳啿
-uint8_t Uart3_RxBuff[256];		//鎺ユ敹缂撳啿
-uint8_t Uart3_Rx_Cnt = 0;		//鎺ユ敹缂撳啿璁℃暟
-uint8_t	cAlmStr[] = "鏁版嵁婧㈠嚭(澶т簬256)\r\n";
+uint8_t aRxBuffer3;			//接收中断缓冲
+uint8_t Uart3_RxBuff[256];		//接收缓冲
+uint8_t Uart3_Rx_Cnt = 0;		//接收缓冲计数
+uint8_t	cAlmStr[] = "数据溢出(大于256)\r\n";
 								
 
 int tim_count=0;
-int start=0;						//绗竴娆℃墽琛宮ain鍑芥暟 鍙噰闆嗕簡涓?涓尝褰笉鍋氭瘮杈冿紝鐢ㄤ簬绗竴娆¤烦杩囨瘮杈?
+int start=0;						//第一次执行main函数 只采集了一个波形不做比较，用于第一次跳过比较
 arm_cfft_radix4_instance_f32 scfft;
 //**********************************************ADC**********************//
 int filter11[5],filter21[5],filter31[5],filter41[5],filter51[5],filter61[5],filter71[5],filter81[5];
 int filter10[5],filter20[5],filter30[5],filter40[5],filter50[5],filter60[5],filter70[5],filter80[5];
 
-int adc11[1030];//鍘熷娉㈠舰		ADC:1	閫氶亾2
-int adc21[1030];//鍘熷娉㈠舰		ADC:1	閫氶亾3
-int adc31[1030];//鍘熷娉㈠舰		ADC:1	閫氶亾4
-int adc41[1030];//鍘熷娉㈠舰		ADC:1	閫氶亾5
-int adc51[1030];//鍘熷娉㈠舰		ADC:2	閫氶亾2
-int adc61[1030];//鍘熷娉㈠舰		ADC:3	閫氶亾1
-int adc71[1030];//鍘熷娉㈠舰		ADC:3	閫氶亾2
-int adc81[1030];//鍘熷娉㈠舰		ADC:3	閫氶亾3
+int adc11[1030];//原始波形		ADC:1	通道2
+int adc21[1030];//原始波形		ADC:1	通道3
+int adc31[1030];//原始波形		ADC:1	通道4
+int adc41[1030];//原始波形		ADC:1	通道5
+int adc51[1030];//原始波形		ADC:2	通道2
+int adc61[1030];//原始波形		ADC:3	通道1
+int adc71[1030];//原始波形		ADC:3	通道2
+int adc81[1030];//原始波形		ADC:3	通道3
 
 
 
-int adc10[1030];//鍘熷娉㈠舰		ADC:1	閫氶亾2
-int adc20[1030];//鍘熷娉㈠舰		ADC:1	閫氶亾3
-int adc30[1030];//鍘熷娉㈠舰		ADC:1	閫氶亾4
-int adc40[1030];//鍘熷娉㈠舰		ADC:1	閫氶亾5
-int adc50[1030];//鍘熷娉㈠舰		ADC:2	閫氶亾2
-int adc60[1030];//鍘熷娉㈠舰		ADC:3	閫氶亾1
-int adc70[1030];//鍘熷娉㈠舰		ADC:3	閫氶亾2
-int adc80[1030];//鍘熷娉㈠舰		ADC:3	閫氶亾3
+int adc10[1030];//原始波形		ADC:1	通道2
+int adc20[1030];//原始波形		ADC:1	通道3
+int adc30[1030];//原始波形		ADC:1	通道4
+int adc40[1030];//原始波形		ADC:1	通道5
+int adc50[1030];//原始波形		ADC:2	通道2
+int adc60[1030];//原始波形		ADC:3	通道1
+int adc70[1030];//原始波形		ADC:3	通道2
+int adc80[1030];//原始波形		ADC:3	通道3
 
 
 
-//********************************************婊戝姩骞冲潎*******************//
+//********************************************滑动平均*******************//
 float avg10[1024];
 float avg20[1024];
 float avg30[1024];
@@ -145,7 +151,7 @@ float avg71[1024];
 float avg81[1024];
 
 
-//********************************************鎶ヨ鏍囧織har****************//
+//********************************************报警标志har****************//
 int har1=0;
 int har2=0;
 int har3=0;
@@ -156,7 +162,7 @@ int har7=0;
 int har8=0;
 int har9=0;
 
-//******************************************FFT杈撳叆銆佽緭鍑篿nput锛宱utput******************//
+//******************************************FFT输入、输出input，output******************//
 float input10[FFT_LENGTH*2];
 float input20[FFT_LENGTH*2];
 float input30[FFT_LENGTH*2];
@@ -194,7 +200,7 @@ float output51[FFT_LENGTH];
 float output61[FFT_LENGTH];
 float output71[FFT_LENGTH];
 float output81[FFT_LENGTH];
-//********************************************棰戣氨鎸箙鏈?澶у??*******************************//
+//********************************************频谱振幅最大值*******************************//
 float max11=0;
 float max21=0;
 float max31=0;
@@ -267,7 +273,6 @@ int get_ADC(ADC_HandleTypeDef adc);
 void filter_A(int* a);
 int abs(int a);
 int filter_M(int *filter,int len);
-
 /* USER CODE END 0 */
 
 /**
@@ -312,8 +317,27 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
+  //HAL_ADCEx_Calibration_Start(&hadc1,ADC_CALIB_OFFSET,ADC_DIFFERENTIAL_ENDED);
+  
+ // HAL_TIM_Base_Start_IT(&htim1);
+  delay_init(400);
+  //HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);
+  HAL_UART_Receive_IT(&huart2, (uint8_t *)&aRxBuffer2,1);
+  HAL_UART_Receive_IT(&huart3, (uint8_t *)&aRxBuffer3, 1);
+  HAL_TIM_Base_Start_IT(&htim1);
+  arm_cfft_radix4_init_f32(&scfft,FFT_LENGTH,0,1);
+  delay_ms(1000);
+	filter_index = filter_len/2;
+  amp_value=(355*limit);			//限制漏电电流转换为波形有效幅值
+									//频谱幅值与波形有效值关系： 		波形有效值=频谱幅值*2/FFT_LEANGTH
+									//波形有效值与漏电电流关系：		ADC测得电压=参考电压(3.3)/(ADC分辨率/2)*波形有效值
+									//								互感器电流=ADC测得电压/负载电阻(内部负载电阻为70欧）
+									//								漏电电流=互感器电流*1000(1000为互感器的线圈比1000：1）
+									
+			
 
-  /* USER CODE END 2 */
+	input_read = (GPIOH->IDR-->2)&0x0F;
+ /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -323,7 +347,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-//********************************************************************ADC娴嬭瘯*****************************************************************//
+//********************************************************************ADC测试*****************************************************************//
 	
 //									HAL_ADC_Start(&hadc1);
 //									HAL_ADC_PollForConversion(&hadc1,0xffff);
@@ -355,7 +379,7 @@ int main(void)
 //								printf("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\r\n",adc11[1],adc21[1],adc31[1],adc41[1],adc51[1],adc61[1],adc71[1],adc81[1]);
 
 									
-//********************************************************************led銆丅EEP娴嬭瘯*************************************************************//
+//********************************************************************led、BEEP测试*************************************************************//
 //		while(1){delay_ms(1000);
 //				HAL_GPIO_TogglePin(LED1_GPIO_Port,LED1_Pin);
 //				HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
@@ -374,7 +398,7 @@ int main(void)
 //			
 //		}
 
-//*******************************************************************缁х數鍣ㄦ祴璇?*************************************************//
+//*******************************************************************继电器测试*************************************************//
 		
 //			HAL_GPIO_TogglePin(KM1_GPIO_Port,KM1_Pin);
 //		delay_ms(1000);
@@ -404,7 +428,7 @@ int main(void)
 	  
 	  
 		sw=!sw;
-//		//***************************************ADC閲囨牱*************************************************//		
+//		//***************************************ADC采样*************************************************//		
 //		if(sw){	for(i=0;i<1030;i++){for(k=0;k<filter_len;k++){
 //																								HAL_ADC_Start(&hadc1);
 //																								HAL_ADC_PollForConversion(&hadc1,0xffff);
@@ -499,12 +523,12 @@ int main(void)
 
 //			
 //       if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);}			
-//									if(sw){	printf("*****************鐗囨1*********************");   //娴嬭瘯閲囬泦鍒扮殑adc鏁版嵁
+//									if(sw){	printf("*****************片段1*********************");   //测试采集到的adc数据
 //											for(i=0;i<1024;i++){printf("%i\r\n",adc11[i]);}}	
-////									else{	printf("*****************鐗囨0*********************");
+////									else{	printf("*****************片段0*********************");
 //											for(i=0;i<1024;i++){printf("%i\r\n",adc10[i]);}}
 											
-//**************************************************************ADC閲囨牱2************************************************************//		
+//**************************************************************ADC采样2************************************************************//		
 		if(sw){	for(i=0;i<1030;i++){for(k=0;k<filter_len;k++){filter11[k]= get_ADC(hadc1);
 																													filter21[k]= get_ADC(hadc1);
 																													filter31[k]= get_ADC(hadc1);
@@ -641,7 +665,7 @@ int main(void)
 //							
 //				
 //									
-////****************************************************adc鍙栨粦鍔ㄥ钩鍧囧苟鏀惧叆input鏁扮粍*********************************************************//		
+////****************************************************adc取滑动平均并放入input数组*********************************************************//		
 
 
 		if(sw){	for(i=0;i<1024;i++){input11[2*i]=avg11[i]=(adc11[i]+adc11[i+1]+adc11[i+2]+adc11[i+3]+adc11[i+4])/5.0;	input11[2*i+1]=0;
@@ -719,11 +743,11 @@ int main(void)
 									cut80[i]=avg80[i+p80];
 									//printf("%f\r\n",cut11[i]);
 									}}
-//		if(sw){			printf("***************************************input********************\r\n");		//input娴嬭瘯
+//		if(sw){			printf("***************************************input********************\r\n");		//input测试
 //						for(i=0;i<1024;i++)printf("%f\r\n",input11[2*i]);	}
 //		else if(start){	printf("**************************************input0********************\r\n");
 //						for(i=0;i<1024;i++)printf("%f\r\n",input10[2*i]);}
-//*********************************************************鐩镐技搴﹁绠?**********************************************************//
+//*********************************************************相似度计算**********************************************************//
 		A1=A2=A3=A4=A5=A6=A7=A8=B1=B2=B3=B4=B5=B6=B7=B8=AB1=AB2=AB3=AB4=AB5=AB6=AB7=AB8=0;								
 		if(start){for(i=0;i<400;i++){	
 							A1+=(cut10[i]-zero)*(cut10[i]-zero);B1+=(cut11[i]-zero)*(cut11[i]-zero);AB1+=(cut10[i]-zero)*(cut11[i]-zero);
@@ -744,13 +768,13 @@ int main(void)
 					cos7=AB7*AB7/A7/B7;	
 					cos8=AB8*AB8/A8/B8;	}
 			
-//		if(sw){			printf("***************************************input********************\r\n");		//input娴嬭瘯
+//		if(sw){			printf("***************************************input********************\r\n");		//input测试
 //						for(i=0;i<1024;i++)printf("%f\r\n",input11[2*i]);	}
 //		else if(start){	printf("**************************************input0********************\r\n");
 //						for(i=0;i<1024;i++)printf("%f\r\n",input10[2*i]);}
 									
 									
-//****************************************************瀵筰nput杩涜FFT鍙樻崲******************************************************//
+//****************************************************对input进行FFT变换******************************************************//
 			
 		if(sw){	arm_cfft_radix4_f32(&scfft,input11);
 				arm_cmplx_mag_f32(input11,output11,FFT_LENGTH);
@@ -787,13 +811,13 @@ int main(void)
 				arm_cfft_radix4_f32(&scfft,input80);
 				arm_cmplx_mag_f32(input80,output80,FFT_LENGTH);}
 					
-//		if(sw){	printf("**************************output1***********************\r\n");   //output 娴嬭瘯
+//		if(sw){	printf("**************************output1***********************\r\n");   //output 测试
 //				for(i=1;i<100;i++)printf("%f\r\n",output21[i]);}
 //				
 //		else if(start){ 
 //				printf("**************************output0***********************\r\n");
 //				for(i=1;i<100;i++)printf("%f\r\n",output20[i]);}			
-////****************************************************棰戣氨鍙栨渶澶у??**************************************//			
+////****************************************************频谱取最大值**************************************//			
 			if(sw){	Imax11=Imax21=Imax31=Imax41=Imax51=Imax61=Imax71=Imax81=0;
 					for(i=1;i<100;i++){	if(output11[i]>Imax11)Imax11=output11[i];
 										if(output21[i]>Imax21)Imax21=output21[i];
@@ -814,7 +838,7 @@ int main(void)
 												if(output80[i]>Imax80)Imax80=output80[i];}}
 												
 				
-//*****************************************************鍓嶅悗娉㈠舰鎸箙姣旇緝******************//				
+//*****************************************************前后波形振幅比较******************//				
 		if(start){if(sw){if((Imax11-Imax10)>amp_value)har1=(int)(Imax11-Imax10);
 						if((Imax21-Imax20)>amp_value)har2=(int)(Imax21-Imax20);
 						if((Imax31-Imax30)>amp_value)har3=(int)(Imax31-Imax30);
@@ -833,77 +857,93 @@ int main(void)
 						if((Imax70-Imax71)>amp_value)har7=(int)(Imax70-Imax71);
 						if((Imax80-Imax81)>amp_value)har8=(int)(Imax80-Imax81);}}
 	
-//		if(sw)	{	printf("婕忕數鐢垫祦1锛?%fmA\t",Imax11/355);printf("绐佸彉鐢垫祦锛?%fmA\r\n",(Imax11-Imax10)/355);}
+//		if(sw)	{	printf("漏电电流1：%fmA\t",Imax11/355);printf("突变电流：%fmA\r\n",(Imax11-Imax10)/355);}
 //		else if(start) 
-//				{printf("婕忕數鐢垫祦0锛?%fmA\t",Imax10/355);printf("绐佸彉鐢垫祦锛?%fmA\r\n",(Imax10-Imax11)/355);}
+//				{printf("漏电电流0：%fmA\t",Imax10/355);printf("突变电流：%fmA\r\n",(Imax10-Imax11)/355);}
 //				printf("%i\r\n",(int)HAL_GPIO_ReadPin(K1_GPIO_Port,K1_Pin));
 		
 //		if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);}
 				
-//		if(sw)	{	printf("婕忕數鐢垫祦1锛?%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);
-//					printf("绐佸彉鐢垫祦锛?%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax11-Imax10)/355,(Imax21-Imax20)/355,(Imax31-Imax30)/355,(Imax41-Imax40)/355,(Imax51-Imax50)/355,(Imax61-Imax60)/355,(Imax71-Imax70)/355,(Imax81-Imax80)/355);}
+//		if(sw)	{	printf("漏电电流1：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);
+//					printf("突变电流：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax11-Imax10)/355,(Imax21-Imax20)/355,(Imax31-Imax30)/355,(Imax41-Imax40)/355,(Imax51-Imax50)/355,(Imax61-Imax60)/355,(Imax71-Imax70)/355,(Imax81-Imax80)/355);}
 //		else if(start) 
-//				{	printf("婕忕數鐢垫祦1锛?%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);
-//					printf("绐佸彉鐢垫祦锛?%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax10-Imax11)/355,(Imax20-Imax21)/355,(Imax30-Imax31)/355,(Imax40-Imax41)/355,(Imax50-Imax51)/355,(Imax60-Imax61)/355,(Imax70-Imax71)/355,(Imax80-Imax81)/355);}
+//				{	printf("漏电电流1：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);
+//					printf("突变电流：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax10-Imax11)/355,(Imax20-Imax21)/355,(Imax30-Imax31)/355,(Imax40-Imax41)/355,(Imax50-Imax51)/355,(Imax60-Imax61)/355,(Imax70-Imax71)/355,(Imax80-Imax81)/355);}
 //		
-//		if(har1){	printf("**************************棰戣氨12************************\r\n");
+//		if(har1){	printf("**************************频谱12************************\r\n");
 //					for(i=1;i<100;i++)printf("%f\t%f\r\n",output11[i],output10[i]);
 //				}
 		if((cos1<0.95f)&&har1){	flag1=1;
+								memcpy(adc0,adc10,sizeof(adc0));
+								memcpy(adc1,adc11,sizeof(adc0));
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("婕忕數鐢垫祦11锛?%05i\t婕忕數鐢垫祦10锛?%05i\t绐佸彉鐢垫祦1锛?%05i",(int)Imax11/355,(int)Imax10/355,(har1/355));
+								printf("漏电电流11：%05i\t漏电电流10：%05i\t突变电流1：%05i",(int)Imax11/355,(int)Imax10/355,(har1/355));
 								har1=0;}
 		if((cos2<0.9f)&&har2){	flag2=1;
+								memcpy(adc0,adc20,sizeof(adc0));
+								memcpy(adc1,adc21,sizeof(adc0));
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("婕忕數鐢垫祦21锛?%05i\t婕忕數鐢垫祦20锛?%05i\t绐佸彉鐢垫祦2锛?%05i",(int)Imax21/355,(int)Imax20/355,har2/355);
+								printf("漏电电流21：%05i\t漏电电流20：%05i\t突变电流2：%05i",(int)Imax21/355,(int)Imax20/355,har2/355);
 								har2=0;}
 									
 		if((cos3<0.9f)&&har3){	flag3=1;
+								memcpy(adc0,adc30,sizeof(adc0));
+								memcpy(adc1,adc31,sizeof(adc0));
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("婕忕數鐢垫祦31锛?%05i\t婕忕數鐢垫祦30锛?%05i\t绐佸彉鐢垫祦3锛?%05i",(int)Imax31/355,(int)Imax30/355,har3/355);
+								printf("漏电电流31：%05i\t漏电电流30：%05i\t突变电流3：%05i",(int)Imax31/355,(int)Imax30/355,har3/355);
 								har3=0;}
 		
 		if((cos4<0.9f)&&har4){	flag4=1;
+								memcpy(adc0,adc40,sizeof(adc0));
+								memcpy(adc1,adc41,sizeof(adc0));
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("婕忕數鐢垫祦41锛?%05i\t婕忕數鐢垫祦40锛?%05i\t绐佸彉鐢垫祦4锛?%05i",(int)Imax41/355,(int)Imax40/355,har4/355);
+								printf("漏电电流41：%05i\t漏电电流40：%05i\t突变电流4：%05i",(int)Imax41/355,(int)Imax40/355,har4/355);
 								har4=0;}
 							
 		if((cos5<0.9f)&&har5){	flag5=1;
+								memcpy(adc0,adc50,sizeof(adc0));
+								memcpy(adc1,adc51,sizeof(adc0));
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("婕忕數鐢垫祦51锛?%05i\t婕忕數鐢垫祦50锛?%05i\t绐佸彉鐢垫祦5锛?%05i",(int)Imax51/355,(int)Imax50/355,har5/355);
+								printf("漏电电流51：%05i\t漏电电流50：%05i\t突变电流5：%05i",(int)Imax51/355,(int)Imax50/355,har5/355);
 								har5=0;}
 							
 		if((cos6<0.9f)&&har6){	flag6=1;
+								memcpy(adc0,adc60,sizeof(adc0));
+								memcpy(adc1,adc61,sizeof(adc0));
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("婕忕數鐢垫祦61锛?%05i\t婕忕數鐢垫祦60锛?%05i\t绐佸彉鐢垫祦6锛?%05i",(int)Imax61/355,(int)Imax60/355,har6/355);
+								printf("漏电电流61：%05i\t漏电电流60：%05i\t突变电流6：%05i",(int)Imax61/355,(int)Imax60/355,har6/355);
 								har6=0;}
 								
 		if((cos7<0.9f)&&har7){	flag7=1;
+								memcpy(adc0,adc70,sizeof(adc0));
+								memcpy(adc1,adc71,sizeof(adc0));
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("婕忕數鐢垫祦71锛?%05i\t婕忕數鐢垫祦70锛?%05i\t绐佸彉鐢垫祦7锛?%05i",(int)Imax71/355,(int)Imax70/355,har7/355);
+								printf("漏电电流71：%05i\t漏电电流70：%05i\t突变电流7：%05i",(int)Imax71/355,(int)Imax70/355,har7/355);
 								har7=0;}
 								
 		if((cos8<0.9f)&&har8){	flag8=1;
+								memcpy(adc0,adc80,sizeof(adc0));
+								memcpy(adc1,adc81,sizeof(adc0));
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("婕忕數鐢垫祦81锛?%05i\t婕忕數鐢垫祦80锛?%05i\t绐佸彉鐢垫祦8锛?%05i",(int)Imax81/355,(int)Imax80/355,har8/355);
+								printf("漏电电流81：%05i\t漏电电流80：%05i\t突变电流8：%05i",(int)Imax81/355,(int)Imax80/355,har8/355);
 								har8=0;}
 		
 								
 								
 												
-		if(connect_confirm >30){printf("AT+CIPSEND=1,15,\"219.128.73.196\",20030\r\n");										//30绉掑彂閫佷竴娆℃暟鎹?
+		if(connect_confirm >30){printf("AT+CIPSEND=1,15,\"219.128.73.196\",20030\r\n");										//30秒发送一次数据
 								delay_ms(100);
 								printf("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i",flag1,flag2,flag3,flag4,flag5,flag6,flag7,flag8);
 								connect_confirm=0;}
-		if(time_out>120){//HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);												//瓒呮椂锛?120绉掞級鏃堕噸缃?4G妯″潡
+		if(time_out>120){//HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);												//超时（120秒）时重置4G模块
 						delay_ms(100);
 						HAL_GPIO_WritePin(reset_4G_GPIO_Port,reset_4G_Pin,GPIO_PIN_SET);
 						delay_ms(100);
@@ -918,6 +958,12 @@ int main(void)
 
 //					if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11/355,Imax21/355,Imax31/355,Imax41/355,Imax51/355,Imax61/355,Imax71/355,Imax81/355);}			
 //					else{printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax10/355,Imax20/355,Imax30/355,Imax40/355,Imax50/355,Imax60/355,Imax70/355,Imax80/355);}
+						
+//																						printf_flag=0;
+//																						HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);
+//																						for (i=0;i<1024;i++){printf("%i\t%i\r\n",adc1[i],adc0[i]);}
+//																						HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_RESET);
+//																						printf_flag=1;
 		
 		start=1;
 	} 
@@ -1117,8 +1163,7 @@ static void MX_ADC2_Init(void)
   hadc2.Init.LowPowerAutoWait = DISABLE;
   hadc2.Init.ContinuousConvMode = DISABLE;
   hadc2.Init.NbrOfConversion = 1;
-  hadc2.Init.DiscontinuousConvMode = ENABLE;
-  hadc2.Init.NbrOfDiscConversion = 1;
+  hadc2.Init.DiscontinuousConvMode = DISABLE;
   hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc2.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
@@ -1239,9 +1284,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
+  htim1.Init.Prescaler = 200;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 0;
+  htim1.Init.Period = 1000;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -1402,9 +1447,9 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : K1_Pin K2_Pin K3_Pin K4_Pin 
+  /*Configure GPIO pins : K1_Pin K3_Pin K2_Pin K4_Pin 
                            K5_Pin K6_Pin K7_Pin K8_Pin */
-  GPIO_InitStruct.Pin = K1_Pin|K2_Pin|K3_Pin|K4_Pin 
+  GPIO_InitStruct.Pin = K1_Pin|K3_Pin|K2_Pin|K4_Pin 
                           |K5_Pin|K6_Pin|K7_Pin|K8_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -1450,45 +1495,61 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 										memset(Uart2_RxBuff,0x00,sizeof(Uart2_RxBuff));
 										HAL_UART_Transmit(&huart2, (uint8_t *)&cAlmStr, sizeof(cAlmStr),0xFFFF);}
 									else{
-										Uart2_RxBuff[Uart2_Rx_Cnt++] = aRxBuffer2;   //鎺ユ敹鏁版嵁杞瓨
+										Uart2_RxBuff[Uart2_Rx_Cnt++] = aRxBuffer2;   //接收数据转存
 										if(aRxBuffer2==0x06)	time_out=0;
-										if((Uart2_RxBuff[Uart2_Rx_Cnt-1] == 0x0A)&&(Uart2_RxBuff[Uart2_Rx_Cnt-2] == 0x0D)) //鍒ゆ柇缁撴潫浣?
+										if((Uart2_RxBuff[Uart2_Rx_Cnt-1] == 0x0A)&&(Uart2_RxBuff[Uart2_Rx_Cnt-2] == 0x0D)) //判断结束位
 										{	
 //											HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);
-//											HAL_UART_Transmit(&huart3, (uint8_t *)&Uart2_RxBuff, Uart2_Rx_Cnt,0xFFFF);//灏嗕覆鍙?2鏀跺埌鐨勪俊鎭彂閫佸埌485涓插彛
+//											HAL_UART_Transmit(&huart3, (uint8_t *)&Uart2_RxBuff, Uart2_Rx_Cnt,0xFFFF);//将串口2收到的信息发送到485串口
 //											HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_RESET);
-											if((Uart2_RxBuff[0] == 0x50)||(Uart2_RxBuff[1] == 0x42))SET4G();// 鍒ゆ柇鎺ユ敹鐨勬秷鎭负 PB DONE 鏃跺垵濮嬪寲4G妯″潡
+											if((Uart2_RxBuff[0] == 0x50)||(Uart2_RxBuff[1] == 0x42))SET4G();// 判断接收的消息为 PB DONE 时初始化4G模块
 											Uart2_Rx_Cnt = 0;
-											memset(Uart2_RxBuff,0x00,sizeof(Uart2_RxBuff)); //娓呯┖鏁扮粍
+											memset(Uart2_RxBuff,0x00,sizeof(Uart2_RxBuff)); //清空数组
 										}
 									}
 
-									HAL_UART_Receive_IT(&huart2, (uint8_t *)&aRxBuffer2, 1);}   //鍐嶅紑鍚帴鏀朵腑鏂?
-//	if(huart->Instance == USART3){if(Uart3_Rx_Cnt >= 255)  //婧㈠嚭鍒ゆ柇
-//									{
-//										Uart3_Rx_Cnt = 0;
-//										memset(Uart3_RxBuff,0x00,sizeof(Uart3_RxBuff));
-//										HAL_UART_Transmit(&huart2, (uint8_t *)&cAlmStr, sizeof(cAlmStr),0xFFFF);	
-//									}
-//									else
-//									{
-//										Uart3_RxBuff[Uart3_Rx_Cnt++] = aRxBuffer3;   //鎺ユ敹鏁版嵁杞瓨
-//										if((Uart3_RxBuff[Uart3_Rx_Cnt-1] == 0x0A)&&(Uart3_RxBuff[Uart3_Rx_Cnt-2] == 0x0D)) //鍒ゆ柇缁撴潫浣?
-//										{
-//											HAL_UART_Transmit(&huart2, (uint8_t *)&Uart3_RxBuff, Uart3_Rx_Cnt,0xFFFF);//灏?485涓插彛鏀跺埌鐨勪俊鎭彂閫佸埌涓插彛2
-//											Uart3_Rx_Cnt = 0;
-//											memset(Uart3_RxBuff,0x00,sizeof(Uart3_RxBuff)); //娓呯┖鏁扮粍
-//										}
-//									}
-
-//									HAL_UART_Receive_IT(&huart2, (uint8_t *)&aRxBuffer3, 1);}
+									HAL_UART_Receive_IT(&huart2, (uint8_t *)&aRxBuffer2, 1);}   //再开启接收中断
+	if(huart->Instance == USART3){if(Uart3_Rx_Cnt >= 255)  //溢出判断
+									{
+										Uart3_Rx_Cnt = 0;
+										memset(Uart3_RxBuff,0x00,sizeof(Uart3_RxBuff));
+										HAL_UART_Transmit(&huart2, (uint8_t *)&cAlmStr, sizeof(cAlmStr),0xFFFF);	
+									}
+									else
+									{
+										Uart3_RxBuff[Uart3_Rx_Cnt++] = aRxBuffer3;   //接收数据转存
+											//HAL_GPIO_TogglePin(BEE_GPIO_Port,BEE_Pin);
+										if(aRxBuffer3==0x06){	printf_flag=0;
+																					HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);
+																					for (i=0;i<1024;i++){printf("%i\t%i\r\n",adc1[i],adc0[i]);}
+																					HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_RESET);
+																					printf_flag=1;
+																					}
+										if((Uart3_RxBuff[Uart3_Rx_Cnt-1] == 0x0A)&&(Uart3_RxBuff[Uart3_Rx_Cnt-2] == 0x0D)) //判断结束位
+										{
+//											HAL_UART_Transmit(&huart2, (uint8_t *)&Uart3_RxBuff, Uart3_Rx_Cnt,0xFFFF);//将485串口收到的信息发送到串口2
+											Uart3_Rx_Cnt = 0;
+											memset(Uart3_RxBuff,0x00,sizeof(Uart3_RxBuff)); //清空数组
+										}
+									}
+									HAL_UART_Receive_IT(&huart3, (uint8_t *)&aRxBuffer3, 1);
+									HAL_UART_Receive_IT(&huart2, (uint8_t *)&aRxBuffer3, 1);}
 		
 		
 							
 }
+//**************************************printf*****************************//
+int fputc(int ch, FILE *f)
+{ 	if(printf_flag){
+			while((USART2->ISR&0X40)==0);  
+			USART2->TDR=(uint8_t)ch; } 
+		else{while((USART3->ISR&0X40)==0);
+				USART3->TDR=(uint8_t)ch;}
+	return ch;
+}
 
 int abs(int a){if(a>=0)return a;else return -a;}
-//********************************************闄愬箙***************************************//
+//********************************************限幅***************************************//
 void filter_A(int * a){for(i=1;i<1020;i++){
 			if(abs(a[i]-a[i-1])>limit_A && abs(a[i]-a[i+1])>limit_A) a[i]=a[i-1];
 			if(abs(a[i]-a[i-1])>limit_A && abs(a[i+1]-a[i+2])>limit_A) a[i]=a[i+1]=a[i-1];
@@ -1510,13 +1571,13 @@ int get_ADC(ADC_HandleTypeDef adc){
 }
 
 
-//*********************************************涓??**************************************//
+//*********************************************中值**************************************//
 int filter_M(int *filter,int len){
 	sort(filter,len);
 	return filter[len/2];
 }
  
-//******************************************鎺掑簭************************************//
+//******************************************排序************************************//
 void sort(int* a,int len)
 {
     int begin = 1;
@@ -1552,7 +1613,7 @@ void SET4G(void){
 	delay_ms(300);
 	printf("AT+CIPSEND=1,18,\"219.128.73.196\",20030\r\n");
 	delay_ms(300);
-	printf("4G妯″潡鍒濆鍖栧畬鎴怽r\n");
+	printf("4G模块初始化完成\r\n");
 //	HAL_GPIO_TogglePin(BEE_GPIO_Port,BEE_Pin);
 //	delay_ms(1000);
 //	HAL_GPIO_TogglePin(BEE_GPIO_Port,BEE_Pin);
@@ -1659,7 +1720,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 																						HAL_GPIO_WritePin(LED10_GPIO_Port,LED10_Pin,GPIO_PIN_RESET);
 																						beep_flag=0;HAL_GPIO_WritePin(BEE_GPIO_Port,BEE_Pin,GPIO_PIN_RESET);}					
 }
-
 
 /* USER CODE END 4 */
 
