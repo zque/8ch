@@ -65,7 +65,7 @@ UART_HandleTypeDef huart3;
 int i=0;							//for循环变量
 int j=0;							//for循环变量
 int k=0;							//for循环变量
-int limit =100  ;						//设置报警突变电流
+int limit =200  ;						//设置报警突变电流
 int sw=0;							//切换前后波形数据控制变量		
 int count=0;
 float amp_value=0.0;				//限制漏电电流转换为幅值有效值
@@ -82,8 +82,8 @@ int limit_A =300;
 int filter_index = 0;
 int beep_flag=0;
 int led_flag=0;
-int adc1[1024];
-int adc0[1024];
+float adc1[1024];
+float adc0[1024];
 int har=0;
 float cos0=0;
 float I1=0;
@@ -891,7 +891,7 @@ int main(void)
 		if((cos1<0.95f)&&har1){	flag1=1;
 								memcpy(adc0,avg10,sizeof(adc0));
 								memcpy(adc1,avg11,sizeof(adc0));
-								har=har2;
+								har=har1;
 								cos0=cos2;
 								I1=Imax11;
 								I0=Imax10;
@@ -914,7 +914,7 @@ int main(void)
 		if((cos3<0.9f)&&har3){	flag3=1;
 								memcpy(adc0,avg30,sizeof(adc0));
 								memcpy(adc1,avg31,sizeof(adc0));
-								har=har2;
+								har=har3;
 								cos0=cos2;
 								I1=Imax31;
 								I0=Imax30;
@@ -926,7 +926,7 @@ int main(void)
 		if((cos4<0.9f)&&har4){	flag4=1;
 								memcpy(adc0,avg40,sizeof(adc0));
 								memcpy(adc1,avg41,sizeof(adc0));
-								har=har2;
+								har=har4;
 								cos0=cos2;
 								I1=Imax41;
 								I0=Imax40;
@@ -938,7 +938,7 @@ int main(void)
 		if((cos5<0.9f)&&har5){	flag5=1;
 								memcpy(adc0,avg50,sizeof(adc0));
 								memcpy(adc1,avg51,sizeof(adc0));
-								har=har2;
+								har=har5;
 								cos0=cos2;
 								I1=Imax51;
 								I0=Imax50;
@@ -950,7 +950,7 @@ int main(void)
 		if((cos6<0.9f)&&har6){	flag6=1;
 								memcpy(adc0,avg60,sizeof(adc0));
 								memcpy(adc1,avg61,sizeof(adc0));
-								har=har2;
+								har=har6;
 								cos0=cos2;
 								I1=Imax61;
 								I0=Imax60;
@@ -962,7 +962,7 @@ int main(void)
 		if((cos7<0.9f)&&har7){	flag7=1;
 								memcpy(adc0,avg70,sizeof(adc0));
 								memcpy(adc1,avg71,sizeof(adc0));
-								har=har2;
+								har=har7;
 								cos0=cos2;
 								I1=Imax71;
 								I0=Imax70;
@@ -974,7 +974,7 @@ int main(void)
 		if((cos8<0.9f)&&har8){	flag8=1;
 								memcpy(adc0,avg80,sizeof(adc0));
 								memcpy(adc1,avg81,sizeof(adc0));
-								har=har2;
+								har=har8;
 								cos0=cos2;
 								I1=Imax81;
 								I0=Imax80;
@@ -1011,7 +1011,7 @@ int main(void)
 //																						for (i=0;i<1024;i++){printf("%i\t%i\r\n",adc1[i],adc0[i]);}
 //																						HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_RESET);
 //																						printf_flag=1;
-		
+			
 		start=1;
 	} 
   /* USER CODE END 3 */
@@ -1568,7 +1568,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 											//HAL_GPIO_TogglePin(BEE_GPIO_Port,BEE_Pin);
 										if(aRxBuffer3==0x06){	printf_flag=0;
 																					HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);
-																					for (i=0;i<1024;i++){printf("%i\t%i\r\n",adc1[i],adc0[i]);}
+																					for (i=0;i<1024;i++){printf("%f\t%f\r\n",adc1[i],adc0[i]);}
 																					printf("相似度：%f\t漏电值1：%f\t漏电值0：%f\t突变值：%i\r\n",cos0,I1/adc2i,I0/adc2i,har/adc2i);
 																					HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_RESET);
 																					printf_flag=1;
@@ -1599,9 +1599,9 @@ int fputc(int ch, FILE *f)
 int abs(int a){if(a>=0)return a;else return -a;}
 //********************************************限幅***************************************//
 void filter_A(int * a){for(i=1;i<1020;i++){
-			if(abs(a[i]-a[i-1])>limit_A && abs(a[i]-a[i+1])>limit_A) a[i]=a[i-1];
-			if(abs(a[i]-a[i-1])>limit_A && abs(a[i+1]-a[i+2])>limit_A) a[i]=a[i+1]=a[i-1];
-			if(abs(a[i]-a[i-1])>limit_A && abs(a[i+3]-a[i+2])>limit_A) a[i+2]=a[i]=a[i+1]=a[i-1];
+			if(((a[i]-a[i-1])>limit_A && (a[i]-a[i+1])>limit_A)||((a[i-1]-a[i])>limit_A && (a[i+1]-a[i])>limit_A)) a[i]=a[i-1];
+			if(((a[i]-a[i-1])>limit_A && (a[i+1]-a[i+2])>limit_A)||((a[i-1]-a[i])>limit_A && (a[i+2]-a[i+1])>limit_A)) a[i]=a[i+1]=a[i-1];
+			if(((a[i]-a[i-1])>limit_A && (a[i+3]-a[i+2])>limit_A)||((a[i-1]-a[i])>limit_A && (a[i+2]-a[i+3])>limit_A)) a[i+2]=a[i]=a[i+1]=a[i-1];
 }
 		
 
