@@ -278,6 +278,7 @@ int get_ADC(ADC_HandleTypeDef adc);
 void filter_A(int* a);
 int abs(int a);
 int filter_M(int *filter,int len);
+float get_I(int* a,int len);
 /* USER CODE END 0 */
 
 /**
@@ -1003,8 +1004,10 @@ int main(void)
 //				if(1){for(i=0;i<1024;i++)printf("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\r\n",
 //																			adc11[i],adc21[i],adc31[i],adc41[i],adc51[i],adc61[i],adc71[i],adc81[i]);}			
 
-					if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11/adc2i,Imax21/adc2i,Imax31/adc2i,Imax41/adc2i,Imax51/adc2i,Imax61/adc2i,Imax71/adc2i,Imax81/adc2i);}			
-					else{printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax10/adc2i,Imax20/adc2i,Imax30/adc2i,Imax40/adc2i,Imax50/adc2i,Imax60/adc2i,Imax70/adc2i,Imax80/adc2i);}
+//					if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11/adc2i,Imax21/adc2i,Imax31/adc2i,Imax41/adc2i,Imax51/adc2i,Imax61/adc2i,Imax71/adc2i,Imax81/adc2i);}			
+//					else{printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax10/adc2i,Imax20/adc2i,Imax30/adc2i,Imax40/adc2i,Imax50/adc2i,Imax60/adc2i,Imax70/adc2i,Imax80/adc2i);}
+					if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",get_I(adc11,1024),Imax11/adc2i,Imax31/adc2i,Imax41/adc2i,Imax51/adc2i,Imax61/adc2i,Imax71/adc2i,Imax81/adc2i);}			
+					else{printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",get_I(adc10,1024),Imax10/adc2i,Imax30/adc2i,Imax40/adc2i,Imax50/adc2i,Imax60/adc2i,Imax70/adc2i,Imax80/adc2i);}
 						
 //																						printf_flag=0;
 //																						HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);
@@ -1601,11 +1604,22 @@ int abs(int a){if(a>=0)return a;else return -a;}
 void filter_A(int * a){for(i=1;i<1020;i++){
 			if(((a[i]-a[i-1])>limit_A && (a[i]-a[i+1])>limit_A)||((a[i-1]-a[i])>limit_A && (a[i+1]-a[i])>limit_A)) a[i]=a[i-1];
 			if(((a[i]-a[i-1])>limit_A && (a[i+1]-a[i+2])>limit_A)||((a[i-1]-a[i])>limit_A && (a[i+2]-a[i+1])>limit_A)) a[i]=a[i+1]=a[i-1];
-			if(((a[i]-a[i-1])>limit_A && (a[i+3]-a[i+2])>limit_A)||((a[i-1]-a[i])>limit_A && (a[i+2]-a[i+3])>limit_A)) a[i+2]=a[i]=a[i+1]=a[i-1];
-}
+			if(((a[i]-a[i-1])>limit_A && (a[i+3]-a[i+2])>limit_A)||((a[i-1]-a[i])>limit_A && (a[i+2]-a[i+3])>limit_A)) a[i+2]=a[i]=a[i+1]=a[i-1];}
 		
-
-
+}
+//********************************************µçÁ÷¼ÆËã***************************************//
+float get_I(int* a,int len){
+		int temp=0;
+		int zero=0;
+		int b=0;
+		for (int i=0;i<len;i++){
+			temp+=a[i];
+		}
+		zero=temp/len;
+		for(int i=0;i<len;i++){
+			b+=abs(zero-a[i]);}
+		return (b*1.111)/(len*adc2i);
+	
 }
 
 
