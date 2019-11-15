@@ -31,6 +31,7 @@
 #include "sys.h"
 #include "delay.h"
 #include "arm_math.h"
+#define zero			33220
 #define FFT_LENGTH 		1024
 #define adc2i					670							//adc转化成电流i的比值
 #define bee				HAL_GPIO_To
@@ -72,7 +73,7 @@ float amp_value=0.0;				//限制漏电电流转换为幅值有效值
 float A=0.0;
 float B=0.0;
 float AB=0.0;
-int zero = 33220;
+//int zero = 33220;
 int reset4G =0;  //4g数据 接收超时重置标志
 int connect_confirm =0; //定时发送消息确保连接
 int alarm_message = 0;
@@ -90,6 +91,10 @@ float I1=0;
 float I0=0;
 int printf_flag=1;
 uint8_t input_read ;
+int zero_temp1[7],zero_temp2[7],zero_temp3[7],zero_temp4[7],zero_temp5[7],zero_temp6[7],zero_temp7[7],zero_temp8[7];
+int zero1,zero2,zero3,zero4,zero5,zero6,zero7,zero8;
+int I_flag=0;
+int delta_Iflag;
 
 //struct {
 //	int K1_Pin:1;
@@ -278,7 +283,9 @@ int get_ADC(ADC_HandleTypeDef adc);
 void filter_A(int* a);
 int abs(int a);
 int filter_M(int *filter,int len);
-float get_I(int* a,int len);
+float get_I(int* a,int len,int z);
+int get_zero(int*a,int len);
+int fputc(int ch, FILE *f);
 /* USER CODE END 0 */
 
 /**
@@ -339,10 +346,70 @@ int main(void)
 									//波形有效值与漏电电流关系：		ADC测得电压=参考电压(3.3)/(ADC分辨率/2)*波形有效值
 									//								互感器电流=ADC测得电压/负载电阻(内部负载电阻为70欧）
 									//								漏电电流=互感器电流*1000(1000为互感器的线圈比1000：1）
-									
+		delay_ms(1000);							
 			
 
 	input_read = (GPIOH->IDR-->2)&0x0F;
+	for(j=0;j<7;j++){
+	for(i=0;i<1030;i++){for(k=0;k<filter_len;k++){filter11[k]= get_ADC(hadc1);
+												filter21[k]= get_ADC(hadc1);
+												filter31[k]= get_ADC(hadc1);
+												filter41[k]= get_ADC(hadc1);
+												filter51[k]= get_ADC(hadc2);
+												filter61[k]= get_ADC(hadc3);
+												filter71[k]= get_ADC(hadc3);
+												filter81[k]= get_ADC(hadc3);
+												//printf("**%i\r\n",filter81[k]);
+													}
+						adc11[i]=filter_M(filter11,filter_len);
+						adc21[i]=filter_M(filter21,filter_len);	
+						adc31[i]=filter_M(filter31,filter_len);
+						adc41[i]=filter_M(filter41,filter_len);		
+						adc51[i]=filter_M(filter51,filter_len);
+						adc61[i]=filter_M(filter61,filter_len);
+						adc71[i]=filter_M(filter71,filter_len);
+						adc81[i]=filter_M(filter81,filter_len);
+						//printf("***%i\r\n",adc81[i]);
+						delay_us(18);}
+//	filter_A(adc11);
+//	filter_A(adc21);
+//	filter_A(adc31);				
+//	filter_A(adc41);	
+//	filter_A(adc51);
+//	filter_A(adc61);
+//	filter_A(adc71);
+//	filter_A(adc81);
+
+	zero_temp1[j]=get_zero(adc11,1024);
+	zero_temp2[j]=get_zero(adc21,1024);
+	zero_temp3[j]=get_zero(adc31,1024);
+	zero_temp4[j]=get_zero(adc41,1024);
+	zero_temp5[j]=get_zero(adc51,1024);
+	zero_temp6[j]=get_zero(adc61,1024);
+	zero_temp7[j]=get_zero(adc71,1024);
+	zero_temp8[j]=get_zero(adc81,1024);
+	
+}	
+	sort(zero_temp1,7);
+	sort(zero_temp2,7);
+	sort(zero_temp3,7);
+	sort(zero_temp4,7);
+	sort(zero_temp5,7);
+	sort(zero_temp6,7);
+	sort(zero_temp7,7);
+	sort(zero_temp8,7);
+	
+	zero1=zero_temp1[3];
+	zero2=zero_temp2[3];
+	zero3=zero_temp3[3];
+	zero4=zero_temp4[3];
+	zero5=zero_temp5[3];
+	zero6=zero_temp6[3];
+	zero7=zero_temp7[3];
+	zero8=zero_temp8[3];
+	
+//	printf("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\r\n",zero1,zero2,zero3,zero4,zero5,zero6,zero7,zero8);
+	
  /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -528,149 +595,76 @@ int main(void)
 //			}}
 
 //			
-//       if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11/adc2i,Imax21/adc2i,Imax31/adc2i,Imax41/adc2i,Imax51/adc2i,Imax61/adc2i,Imax71/adc2i,Imax81/adc2i);}			
+//       if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11,Imax21,Imax31,Imax41,Imax51,Imax61,Imax71,Imax81);}			
 //									if(sw){	printf("*****************片段1*********************");   //测试采集到的adc数据
 //											for(i=0;i<1024;i++){printf("%i\r\n",adc11[i]);}}	
 ////									else{	printf("*****************片段0*********************");
 //											for(i=0;i<1024;i++){printf("%i\r\n",adc10[i]);}}
+
+
+//printf("%i\t%i\t%i\t%i\t%i\t%i\t%i\r\n",zero_temp1[0],zero_temp1[1],zero_temp1[2],zero_temp1[3],zero_temp1[4],zero_temp1[5],zero_temp1[6]);
 											
 //**************************************************************ADC采样2************************************************************//		
 		if(sw){	for(i=0;i<1030;i++){for(k=0;k<filter_len;k++){filter11[k]= get_ADC(hadc1);
-																													filter21[k]= get_ADC(hadc1);
-																													filter31[k]= get_ADC(hadc1);
-																													filter41[k]= get_ADC(hadc1);
-																													filter51[k]= get_ADC(hadc2);
-																													filter61[k]= get_ADC(hadc3);
-																													filter71[k]= get_ADC(hadc3);
-																													filter81[k]= get_ADC(hadc3);
-																													//printf("**%i\r\n",filter81[k]);
-																														}
-																adc11[i]=filter_M(filter11,filter_len);
-																adc21[i]=filter_M(filter21,filter_len);	
-																adc31[i]=filter_M(filter31,filter_len);
-																adc41[i]=filter_M(filter41,filter_len);		
-																adc51[i]=filter_M(filter51,filter_len);
-																adc61[i]=filter_M(filter61,filter_len);
-																adc71[i]=filter_M(filter71,filter_len);
-																adc81[i]=filter_M(filter81,filter_len);
-																//printf("***%i\r\n",adc81[i]);
-																delay_us(20);}
-					filter_A(adc11);
-					filter_A(adc21);
-					filter_A(adc31);				
-					filter_A(adc41);	
-					filter_A(adc51);
-					filter_A(adc61);
-					filter_A(adc71);
-					filter_A(adc81);
-																
+															filter21[k]= get_ADC(hadc1);
+															filter31[k]= get_ADC(hadc1);
+															filter41[k]= get_ADC(hadc1);
+															filter51[k]= get_ADC(hadc2);
+															filter61[k]= get_ADC(hadc3);
+															filter71[k]= get_ADC(hadc3);
+															filter81[k]= get_ADC(hadc3);
+															//printf("**%i\r\n",filter81[k]);
+																}
+									adc11[i]=filter_M(filter11,filter_len);
+									adc21[i]=filter_M(filter21,filter_len);	
+									adc31[i]=filter_M(filter31,filter_len);
+									adc41[i]=filter_M(filter41,filter_len);		
+									adc51[i]=filter_M(filter51,filter_len);
+									adc61[i]=filter_M(filter61,filter_len);
+									adc71[i]=filter_M(filter71,filter_len);
+									adc81[i]=filter_M(filter81,filter_len);
+									//printf("***%i\r\n",adc81[i]);
+									delay_us(18);}
+				filter_A(adc11);
+				filter_A(adc21);
+				filter_A(adc31);				
+				filter_A(adc41);	
+				filter_A(adc51);
+				filter_A(adc61);
+				filter_A(adc71);
+				filter_A(adc81);
+															
 																
 																
 		}else{for(i=0;i<1030;i++){for(k=0;k<filter_len;k++){	filter10[k]= get_ADC(hadc1);
-																													filter20[k]= get_ADC(hadc1);
-																													filter30[k]= get_ADC(hadc1);
-																													filter40[k]= get_ADC(hadc1);
-																													filter50[k]= get_ADC(hadc2);
-																													filter60[k]= get_ADC(hadc3);
-																													filter70[k]= get_ADC(hadc3);
-																													filter80[k]= get_ADC(hadc3);	}
-																adc10[i]=filter_M(filter10,filter_len);
-																adc20[i]=filter_M(filter20,filter_len);	
-																adc30[i]=filter_M(filter30,filter_len);
-																adc40[i]=filter_M(filter40,filter_len);		
-																adc50[i]=filter_M(filter50,filter_len);
-																adc60[i]=filter_M(filter60,filter_len);
-																adc70[i]=filter_M(filter70,filter_len);
-																adc80[i]=filter_M(filter80,filter_len);
-																delay_us(20);}
-					filter_A(adc10);
-					filter_A(adc20);
-					filter_A(adc30);				
-					filter_A(adc40);	
-					filter_A(adc50);
-					filter_A(adc60);
-					filter_A(adc70);
-					filter_A(adc80);
+																filter20[k]= get_ADC(hadc1);
+																filter30[k]= get_ADC(hadc1);
+																filter40[k]= get_ADC(hadc1);
+																filter50[k]= get_ADC(hadc2);
+																filter60[k]= get_ADC(hadc3);
+																filter70[k]= get_ADC(hadc3);
+																filter80[k]= get_ADC(hadc3);	}
+								adc10[i]=filter_M(filter10,filter_len);
+								adc20[i]=filter_M(filter20,filter_len);	
+								adc30[i]=filter_M(filter30,filter_len);
+								adc40[i]=filter_M(filter40,filter_len);		
+								adc50[i]=filter_M(filter50,filter_len);
+								adc60[i]=filter_M(filter60,filter_len);
+								adc70[i]=filter_M(filter70,filter_len);
+								adc80[i]=filter_M(filter80,filter_len);
+								delay_us(18);}
+				filter_A(adc10);
+				filter_A(adc20);
+				filter_A(adc30);				
+				filter_A(adc40);	
+				filter_A(adc50);
+				filter_A(adc60);
+				filter_A(adc70);
+				filter_A(adc80);
 		}
 		
-//		if(sw){printf("**********************1**********************\r\n");
-//					for (i=0;i<1024;i++)printf("%i\r\n",adc11[i]);}
-//		else {printf("**********************0**********************\r\n");
-//					for (i=0;i<1024;i++)printf("%i\r\n",adc10[i]);}
-					
 
-					//	printf("***************************************\r\n");
-//						if(flag2){for(i=0;i<1024;i++)printf("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\r\n",
-//																			adc20[i],adc21[i],adc31[i],adc41[i],adc51[i],adc61[i],adc71[i],adc81[i]);}			
-//		
-
-
-
-
-											
-//											
-//		if(sw){	for(i=0;i<1030;i++){for(j=0;j<4;j++){HAL_ADC_Start(&hadc1);
-//									HAL_ADC_PollForConversion(&hadc1,0xffff);
-//									adc11[i]= HAL_ADC_GetValue(&hadc1);
-//									HAL_ADC_Start(&hadc1);
-//									HAL_ADC_PollForConversion(&hadc1,0xffff);
-//									adc21[i]= HAL_ADC_GetValue(&hadc1);
-//									HAL_ADC_Start(&hadc1);
-//									HAL_ADC_PollForConversion(&hadc1,0xffff);
-//									adc31[i]= HAL_ADC_GetValue(&hadc1);
-//									HAL_ADC_Start(&hadc1);
-//									HAL_ADC_PollForConversion(&hadc1,0xffff);
-//									adc41[i]= HAL_ADC_GetValue(&hadc1);}
-//					
-//									HAL_ADC_Start(&hadc2);
-//									HAL_ADC_PollForConversion(&hadc2,0xffff);
-//									adc51[i]= HAL_ADC_GetValue(&hadc2);
-//									
-//									for(j=0;j<3;j++){HAL_ADC_Start(&hadc3);
-//									HAL_ADC_PollForConversion(&hadc3,0xffff);
-//									adc61[i]= HAL_ADC_GetValue(&hadc3);
-//									HAL_ADC_Start(&hadc3);	
-//									HAL_ADC_PollForConversion(&hadc3,0xffff);
-//									adc71[i]= HAL_ADC_GetValue(&hadc3);
-//									HAL_ADC_Start(&hadc3);	
-//									HAL_ADC_PollForConversion(&hadc3,0xffff);
-//									adc81[i]= HAL_ADC_GetValue(&hadc3);}
-//									delay_us(150);}
-//		
-//						filter(adc11,avg11);
-//				}
-//		else{for(i=0;i<1030;i++){HAL_ADC_Start(&hadc1);
-//									HAL_ADC_PollForConversion(&hadc1,0xffff);
-//									adc10[i]= HAL_ADC_GetValue(&hadc1);
-//									HAL_ADC_Start(&hadc1);
-//									HAL_ADC_PollForConversion(&hadc1,0xffff);
-//									adc20[i]= HAL_ADC_GetValue(&hadc1);
-//									HAL_ADC_Start(&hadc1);
-//									HAL_ADC_PollForConversion(&hadc1,0xffff);
-//									adc30[i]= HAL_ADC_GetValue(&hadc1);
-//									HAL_ADC_Start(&hadc1);
-//									HAL_ADC_PollForConversion(&hadc1,0xffff);
-//									adc40[i]= HAL_ADC_GetValue(&hadc1);
-//									
-//									HAL_ADC_Start(&hadc2);
-//									HAL_ADC_PollForConversion(&hadc2,0xffff);
-//									adc50[i]= HAL_ADC_GetValue(&hadc2);
-//									
-//									HAL_ADC_Start(&hadc3);
-//									HAL_ADC_PollForConversion(&hadc3,0xffff);
-//									adc60[i]= HAL_ADC_GetValue(&hadc3);
-//									HAL_ADC_Start(&hadc3);
-//									HAL_ADC_PollForConversion(&hadc3,0xffff);
-//									adc70[i]= HAL_ADC_GetValue(&hadc3);
-//									HAL_ADC_Start(&hadc3);
-//									HAL_ADC_PollForConversion(&hadc3,0xffff);
-//									adc80[i]= HAL_ADC_GetValue(&hadc3);	
-//									delay_us(150);
-//									}}
-//		
-//							
-//				
-//									
+									
 ////****************************************************adc取滑动平均并放入input数组*********************************************************//		
 
 
@@ -779,89 +773,89 @@ int main(void)
 //		else if(start){	printf("**************************************input0********************\r\n");
 //						for(i=0;i<1024;i++)printf("%f\r\n",input10[2*i]);}
 									
-									
-//****************************************************对input进行FFT变换******************************************************//
-			
-		if(sw){	arm_cfft_radix4_f32(&scfft,input11);
-				arm_cmplx_mag_f32(input11,output11,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input21);
-				arm_cmplx_mag_f32(input21,output21,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input31);
-				arm_cmplx_mag_f32(input31,output31,FFT_LENGTH);				
-				arm_cfft_radix4_f32(&scfft,input41);
-				arm_cmplx_mag_f32(input41,output41,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input51);
-				arm_cmplx_mag_f32(input51,output51,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input61);
-				arm_cmplx_mag_f32(input61,output61,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input71);
-				arm_cmplx_mag_f32(input71,output71,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input81);
-				arm_cmplx_mag_f32(input81,output81,FFT_LENGTH);}
-		
-		else if(start){ 	
-				arm_cfft_radix4_f32(&scfft,input10);
-				arm_cmplx_mag_f32(input10,output10,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input20);
-				arm_cmplx_mag_f32(input20,output20,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input30);
-				arm_cmplx_mag_f32(input30,output30,FFT_LENGTH);				
-				arm_cfft_radix4_f32(&scfft,input40);
-				arm_cmplx_mag_f32(input40,output40,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input50);
-				arm_cmplx_mag_f32(input50,output50,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input60);
-				arm_cmplx_mag_f32(input60,output60,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input70);
-				arm_cmplx_mag_f32(input70,output70,FFT_LENGTH);
-				arm_cfft_radix4_f32(&scfft,input80);
-				arm_cmplx_mag_f32(input80,output80,FFT_LENGTH);}
-					
-//		if(sw){	printf("**************************output1***********************\r\n");   //output 测试
-//				for(i=1;i<100;i++)printf("%f\r\n",output21[i]);}
+//									
+////****************************************************对input进行FFT变换******************************************************//
+//			
+//		if(sw){	arm_cfft_radix4_f32(&scfft,input11);
+//				arm_cmplx_mag_f32(input11,output11,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input21);
+//				arm_cmplx_mag_f32(input21,output21,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input31);
+//				arm_cmplx_mag_f32(input31,output31,FFT_LENGTH);				
+//				arm_cfft_radix4_f32(&scfft,input41);
+//				arm_cmplx_mag_f32(input41,output41,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input51);
+//				arm_cmplx_mag_f32(input51,output51,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input61);
+//				arm_cmplx_mag_f32(input61,output61,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input71);
+//				arm_cmplx_mag_f32(input71,output71,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input81);
+//				arm_cmplx_mag_f32(input81,output81,FFT_LENGTH);}
+//		
+//		else if(start){ 	
+//				arm_cfft_radix4_f32(&scfft,input10);
+//				arm_cmplx_mag_f32(input10,output10,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input20);
+//				arm_cmplx_mag_f32(input20,output20,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input30);
+//				arm_cmplx_mag_f32(input30,output30,FFT_LENGTH);				
+//				arm_cfft_radix4_f32(&scfft,input40);
+//				arm_cmplx_mag_f32(input40,output40,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input50);
+//				arm_cmplx_mag_f32(input50,output50,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input60);
+//				arm_cmplx_mag_f32(input60,output60,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input70);
+//				arm_cmplx_mag_f32(input70,output70,FFT_LENGTH);
+//				arm_cfft_radix4_f32(&scfft,input80);
+//				arm_cmplx_mag_f32(input80,output80,FFT_LENGTH);}
+//					
+////		if(sw){	printf("**************************output1***********************\r\n");   //output 测试
+////				for(i=1;i<100;i++)printf("%f\r\n",output21[i]);}
+////				
+////		else if(start){ 
+////				printf("**************************output0***********************\r\n");
+////				for(i=1;i<100;i++)printf("%f\r\n",output20[i]);}			
+//////****************************************************频谱取最大值**************************************//			
+//			if(sw){	Imax11=Imax21=Imax31=Imax41=Imax51=Imax61=Imax71=Imax81=0;
+//					for(i=1;i<100;i++){	if(output11[i]>Imax11)Imax11=output11[i];
+//										if(output21[i]>Imax21)Imax21=output21[i];
+//										if(output31[i]>Imax31)Imax31=output31[i];
+//										if(output41[i]>Imax41)Imax41=output41[i];
+//										if(output51[i]>Imax51)Imax51=output51[i];
+//										if(output61[i]>Imax61)Imax61=output61[i];
+//										if(output71[i]>Imax71)Imax71=output71[i];
+//										if(output81[i]>Imax81)Imax81=output81[i];}}
+//			else if(start){	Imax10=Imax20=Imax30=Imax40=Imax50=Imax60=Imax70=Imax80=0;
+//					for(i=1;i<100;i++){	if(output10[i]>Imax10)Imax10=output10[i];
+//												if(output20[i]>Imax20)Imax20=output20[i];
+//												if(output30[i]>Imax30)Imax30=output30[i];
+//												if(output40[i]>Imax40)Imax40=output40[i];
+//												if(output50[i]>Imax50)Imax50=output50[i];
+//												if(output60[i]>Imax60)Imax60=output60[i];
+//												if(output70[i]>Imax70)Imax70=output70[i];
+//												if(output80[i]>Imax80)Imax80=output80[i];}}
+//												
 //				
-//		else if(start){ 
-//				printf("**************************output0***********************\r\n");
-//				for(i=1;i<100;i++)printf("%f\r\n",output20[i]);}			
-////****************************************************频谱取最大值**************************************//			
-			if(sw){	Imax11=Imax21=Imax31=Imax41=Imax51=Imax61=Imax71=Imax81=0;
-					for(i=1;i<100;i++){	if(output11[i]>Imax11)Imax11=output11[i];
-										if(output21[i]>Imax21)Imax21=output21[i];
-										if(output31[i]>Imax31)Imax31=output31[i];
-										if(output41[i]>Imax41)Imax41=output41[i];
-										if(output51[i]>Imax51)Imax51=output51[i];
-										if(output61[i]>Imax61)Imax61=output61[i];
-										if(output71[i]>Imax71)Imax71=output71[i];
-										if(output81[i]>Imax81)Imax81=output81[i];}}
-			else if(start){	Imax10=Imax20=Imax30=Imax40=Imax50=Imax60=Imax70=Imax80=0;
-					for(i=1;i<100;i++){	if(output10[i]>Imax10)Imax10=output10[i];
-												if(output20[i]>Imax20)Imax20=output20[i];
-												if(output30[i]>Imax30)Imax30=output30[i];
-												if(output40[i]>Imax40)Imax40=output40[i];
-												if(output50[i]>Imax50)Imax50=output50[i];
-												if(output60[i]>Imax60)Imax60=output60[i];
-												if(output70[i]>Imax70)Imax70=output70[i];
-												if(output80[i]>Imax80)Imax80=output80[i];}}
-												
-				
-//*****************************************************前后波形振幅比较******************//				
-		if(start){if(sw){if((Imax11-Imax10)>amp_value)har1=(int)(Imax11-Imax10);
-						if((Imax21-Imax20)>amp_value)har2=(int)(Imax21-Imax20);
-						if((Imax31-Imax30)>amp_value)har3=(int)(Imax31-Imax30);
-						if((Imax41-Imax40)>amp_value)har4=(int)(Imax41-Imax40);
-						if((Imax51-Imax50)>amp_value)har5=(int)(Imax51-Imax50);
-						if((Imax61-Imax60)>amp_value)har6=(int)(Imax61-Imax60);	
-						if((Imax71-Imax70)>amp_value)har7=(int)(Imax71-Imax70);
-						if((Imax81-Imax80)>amp_value)har8=(int)(Imax81-Imax80);}
-					else{	
-						if((Imax10-Imax11)>amp_value)har1=(int)(Imax10-Imax11);
-						if((Imax20-Imax21)>amp_value)har2=(int)(Imax20-Imax21);
-						if((Imax30-Imax31)>amp_value)har3=(int)(Imax30-Imax31);
-						if((Imax40-Imax41)>amp_value)har4=(int)(Imax40-Imax41);
-						if((Imax50-Imax51)>amp_value)har5=(int)(Imax50-Imax51);
-						if((Imax60-Imax61)>amp_value)har6=(int)(Imax60-Imax61);	
-						if((Imax70-Imax71)>amp_value)har7=(int)(Imax70-Imax71);
-						if((Imax80-Imax81)>amp_value)har8=(int)(Imax80-Imax81);}}
+////*****************************************************前后波形振幅比较******************//				
+//		if(start){if(sw){if((Imax11-Imax10)>amp_value)har1=(int)(Imax11-Imax10);
+//						if((Imax21-Imax20)>amp_value)har2=(int)(Imax21-Imax20);
+//						if((Imax31-Imax30)>amp_value)har3=(int)(Imax31-Imax30);
+//						if((Imax41-Imax40)>amp_value)har4=(int)(Imax41-Imax40);
+//						if((Imax51-Imax50)>amp_value)har5=(int)(Imax51-Imax50);
+//						if((Imax61-Imax60)>amp_value)har6=(int)(Imax61-Imax60);	
+//						if((Imax71-Imax70)>amp_value)har7=(int)(Imax71-Imax70);
+//						if((Imax81-Imax80)>amp_value)har8=(int)(Imax81-Imax80);}
+//					else{	
+//						if((Imax10-Imax11)>amp_value)har1=(int)(Imax10-Imax11);
+//						if((Imax20-Imax21)>amp_value)har2=(int)(Imax20-Imax21);
+//						if((Imax30-Imax31)>amp_value)har3=(int)(Imax30-Imax31);
+//						if((Imax40-Imax41)>amp_value)har4=(int)(Imax40-Imax41);
+//						if((Imax50-Imax51)>amp_value)har5=(int)(Imax50-Imax51);
+//						if((Imax60-Imax61)>amp_value)har6=(int)(Imax60-Imax61);	
+//						if((Imax70-Imax71)>amp_value)har7=(int)(Imax70-Imax71);
+//						if((Imax80-Imax81)>amp_value)har8=(int)(Imax80-Imax81);}}
 		
 //		if(start){if(fabs(Imax11-Imax10)>amp_value)har1=(int)fabs(Imax11-Imax10);
 //							if(fabs(Imax21-Imax20)>amp_value)har2=(int)fabs(Imax21-Imax20);
@@ -873,22 +867,63 @@ int main(void)
 //							if(fabs(Imax81-Imax80)>amp_value)har8=(int)fabs(Imax81-Imax80);}
 							
 	
-//		if(sw)	{	printf("漏电电流1：%fmA\t",Imax11/adc2i);printf("突变电流：%fmA\r\n",(Imax11-Imax10)/adc2i);}
+//		if(sw)	{	printf("漏电电流1：%fmA\t",Imax11);printf("突变电流：%fmA\r\n",(Imax11-Imax10));}
 //		else if(start) 
-//				{printf("漏电电流0：%fmA\t",Imax10/adc2i);printf("突变电流：%fmA\r\n",(Imax10-Imax11)/adc2i);}
+//				{printf("漏电电流0：%fmA\t",Imax10);printf("突变电流：%fmA\r\n",(Imax10-Imax11));}
 //				printf("%i\r\n",(int)HAL_GPIO_ReadPin(K1_GPIO_Port,K1_Pin));
 		
-//		if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11/adc2i,Imax21/adc2i,Imax31/adc2i,Imax41/adc2i,Imax51/adc2i,Imax61/adc2i,Imax71/adc2i,Imax81/adc2i);}
+//		if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11,Imax21,Imax31,Imax41,Imax51,Imax61,Imax71,Imax81);}
 				
-//		if(sw)	{	printf("漏电电流1：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11/adc2i,Imax21/adc2i,Imax31/adc2i,Imax41/adc2i,Imax51/adc2i,Imax61/adc2i,Imax71/adc2i,Imax81/adc2i);
-//					printf("突变电流：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax11-Imax10)/adc2i,(Imax21-Imax20)/adc2i,(Imax31-Imax30)/adc2i,(Imax41-Imax40)/adc2i,(Imax51-Imax50)/adc2i,(Imax61-Imax60)/adc2i,(Imax71-Imax70)/adc2i,(Imax81-Imax80)/adc2i);}
+//		if(sw)	{	printf("漏电电流1：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11,Imax21,Imax31,Imax41,Imax51,Imax61,Imax71,Imax81);
+//					printf("突变电流：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax11-Imax10),(Imax21-Imax20),(Imax31-Imax30),(Imax41-Imax40),(Imax51-Imax50),(Imax61-Imax60),(Imax71-Imax70),(Imax81-Imax80));}
 //		else if(start) 
-//				{	printf("漏电电流1：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11/adc2i,Imax21/adc2i,Imax31/adc2i,Imax41/adc2i,Imax51/adc2i,Imax61/adc2i,Imax71/adc2i,Imax81/adc2i);
-//					printf("突变电流：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax10-Imax11)/adc2i,(Imax20-Imax21)/adc2i,(Imax30-Imax31)/adc2i,(Imax40-Imax41)/adc2i,(Imax50-Imax51)/adc2i,(Imax60-Imax61)/adc2i,(Imax70-Imax71)/adc2i,(Imax80-Imax81)/adc2i);}
+//				{	printf("漏电电流1：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",Imax11,Imax21,Imax31,Imax41,Imax51,Imax61,Imax71,Imax81);
+//					printf("突变电流：%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\t%fmA\r\n",(Imax10-Imax11),(Imax20-Imax21),(Imax30-Imax31),(Imax40-Imax41),(Imax50-Imax51),(Imax60-Imax61),(Imax70-Imax71),(Imax80-Imax81));}
 //		
 //		if(har1){	printf("**************************频谱12************************\r\n");
 //					for(i=1;i<100;i++)printf("%f\t%f\r\n",output11[i],output10[i]);
 //				}
+		if(sw){	Imax11=get_I(adc11,1024,zero1);
+				Imax21=get_I(adc21,1024,zero2);
+				Imax31=get_I(adc31,1024,zero3);
+				Imax41=get_I(adc41,1024,zero4);
+				Imax51=get_I(adc51,1024,zero5);
+				Imax61=get_I(adc61,1024,zero6);
+				Imax71=get_I(adc71,1024,zero7);
+				Imax81=get_I(adc81,1024,zero8);}
+		else {if(start){
+				Imax10=get_I(adc10,1024,zero1);
+				Imax20=get_I(adc20,1024,zero2);
+				Imax30=get_I(adc30,1024,zero3);
+				Imax40=get_I(adc40,1024,zero4);
+				Imax50=get_I(adc50,1024,zero5);
+				Imax60=get_I(adc60,1024,zero6);
+				Imax70=get_I(adc70,1024,zero7);
+				Imax80=get_I(adc80,1024,zero8);}}
+		if(start){if(sw){if((Imax11-Imax10)>amp_value)har1=(int)(Imax11-Imax10);
+				if((Imax21-Imax20)>limit)har2=(int)(Imax21-Imax20);
+				if((Imax31-Imax30)>limit)har3=(int)(Imax31-Imax30);
+				if((Imax41-Imax40)>limit)har4=(int)(Imax41-Imax40);
+				if((Imax51-Imax50)>limit)har5=(int)(Imax51-Imax50);
+				if((Imax61-Imax60)>limit)har6=(int)(Imax61-Imax60);	
+				if((Imax71-Imax70)>limit)har7=(int)(Imax71-Imax70);
+				if((Imax81-Imax80)>limit)har8=(int)(Imax81-Imax80);}
+			else{	
+				if((Imax10-Imax11)>limit)har1=(int)(Imax10-Imax11);
+				if((Imax20-Imax21)>limit)har2=(int)(Imax20-Imax21);
+				if((Imax30-Imax31)>limit)har3=(int)(Imax30-Imax31);
+				if((Imax40-Imax41)>limit)har4=(int)(Imax40-Imax41);
+				if((Imax50-Imax51)>limit)har5=(int)(Imax50-Imax51);
+				if((Imax60-Imax61)>limit)har6=(int)(Imax60-Imax61);	
+				if((Imax70-Imax71)>limit)har7=(int)(Imax70-Imax71);
+				if((Imax80-Imax81)>limit)har8=(int)(Imax80-Imax81);}}
+				
+				
+				
+			
+			
+			
+			
 		if((cos1<0.95f)&&har1){	flag1=1;
 								memcpy(adc0,avg10,sizeof(adc0));
 								memcpy(adc1,avg11,sizeof(adc0));
@@ -898,7 +933,7 @@ int main(void)
 								I0=Imax10;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流11：%05i\t漏电电流10：%05i\t突变电流1：%05i",(int)Imax11/adc2i,(int)Imax10/adc2i,(har1/adc2i));
+								printf("漏电电流11：%05i\t漏电电流10：%05i\t突变电流1：%05i",(int)Imax11,(int)Imax10,(har1));
 								har1=0;}
 		if((cos2<0.9f)&&har2){	flag2=1;
 								memcpy(adc0,avg20,sizeof(adc0));
@@ -909,7 +944,7 @@ int main(void)
 								I0=Imax20;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流21：%05i\t漏电电流20：%05i\t突变电流2：%05i",(int)Imax21/adc2i,(int)Imax20/adc2i,har2/adc2i);
+								printf("漏电电流21：%05i\t漏电电流20：%05i\t突变电流2：%05i",(int)Imax21,(int)Imax20,har2);
 								har2=0;}
 									
 		if((cos3<0.9f)&&har3){	flag3=1;
@@ -921,7 +956,7 @@ int main(void)
 								I0=Imax30;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流31：%05i\t漏电电流30：%05i\t突变电流3：%05i",(int)Imax31/adc2i,(int)Imax30/adc2i,har3/adc2i);
+								printf("漏电电流31：%05i\t漏电电流30：%05i\t突变电流3：%05i",(int)Imax31,(int)Imax30,har3);
 								har3=0;}
 		
 		if((cos4<0.9f)&&har4){	flag4=1;
@@ -933,7 +968,7 @@ int main(void)
 								I0=Imax40;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流41：%05i\t漏电电流40：%05i\t突变电流4：%05i",(int)Imax41/adc2i,(int)Imax40/adc2i,har4/adc2i);
+								printf("漏电电流41：%05i\t漏电电流40：%05i\t突变电流4：%05i",(int)Imax41,(int)Imax40,har4);
 								har4=0;}
 							
 		if((cos5<0.9f)&&har5){	flag5=1;
@@ -945,7 +980,7 @@ int main(void)
 								I0=Imax50;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流51：%05i\t漏电电流50：%05i\t突变电流5：%05i",(int)Imax51/adc2i,(int)Imax50/adc2i,har5/adc2i);
+								printf("漏电电流51：%05i\t漏电电流50：%05i\t突变电流5：%05i",(int)Imax51,(int)Imax50,har5);
 								har5=0;}
 							
 		if((cos6<0.9f)&&har6){	flag6=1;
@@ -957,7 +992,7 @@ int main(void)
 								I0=Imax60;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流61：%05i\t漏电电流60：%05i\t突变电流6：%05i",(int)Imax61/adc2i,(int)Imax60/adc2i,har6/adc2i);
+								printf("漏电电流61：%05i\t漏电电流60：%05i\t突变电流6：%05i",(int)Imax61,(int)Imax60,har6);
 								har6=0;}
 								
 		if((cos7<0.9f)&&har7){	flag7=1;
@@ -969,7 +1004,7 @@ int main(void)
 								I0=Imax70;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流71：%05i\t漏电电流70：%05i\t突变电流7：%05i",(int)Imax71/adc2i,(int)Imax70/adc2i,har7/adc2i);
+								printf("漏电电流71：%05i\t漏电电流70：%05i\t突变电流7：%05i",(int)Imax71,(int)Imax70,har7);
 								har7=0;}
 								
 		if((cos8<0.9f)&&har8){	flag8=1;
@@ -981,7 +1016,7 @@ int main(void)
 								I0=Imax80;
 								printf("AT+CIPSEND=1,52,\"219.128.73.196\",20030\r\n");
 								delay_ms(100);
-								printf("漏电电流81：%05i\t漏电电流80：%05i\t突变电流8：%05i",(int)Imax81/adc2i,(int)Imax80/adc2i,har8/adc2i);
+								printf("漏电电流81：%05i\t漏电电流80：%05i\t突变电流8：%05i",(int)Imax81,(int)Imax80,har8);
 								har8=0;}
 		
 								
@@ -1004,17 +1039,17 @@ int main(void)
 //				if(1){for(i=0;i<1024;i++)printf("%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\r\n",
 //																			adc11[i],adc21[i],adc31[i],adc41[i],adc51[i],adc61[i],adc71[i],adc81[i]);}			
 
-//					if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11/adc2i,Imax21/adc2i,Imax31/adc2i,Imax41/adc2i,Imax51/adc2i,Imax61/adc2i,Imax71/adc2i,Imax81/adc2i);}			
-//					else{printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax10/adc2i,Imax20/adc2i,Imax30/adc2i,Imax40/adc2i,Imax50/adc2i,Imax60/adc2i,Imax70/adc2i,Imax80/adc2i);}
-					if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",get_I(adc11,1024),Imax11/adc2i,Imax31/adc2i,Imax41/adc2i,Imax51/adc2i,Imax61/adc2i,Imax71/adc2i,Imax81/adc2i);}			
-					else{printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",get_I(adc10,1024),Imax10/adc2i,Imax30/adc2i,Imax40/adc2i,Imax50/adc2i,Imax60/adc2i,Imax70/adc2i,Imax80/adc2i);}
-						
+//					if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11,Imax21,Imax31,Imax41,Imax51,Imax61,Imax71,Imax81);}			
+//					else{printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax10,Imax20,Imax30,Imax40,Imax50,Imax60,Imax70,Imax80);}
+					if(sw){printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax11,Imax21,Imax31,Imax41,Imax51,Imax61,Imax71,Imax81);}			
+					else{printf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\r\n",Imax10,Imax20,Imax30,Imax40,Imax50,Imax60,Imax70,Imax80);}
+//						
 //																						printf_flag=0;
 //																						HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);
 //																						for (i=0;i<1024;i++){printf("%i\t%i\r\n",adc1[i],adc0[i]);}
 //																						HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_RESET);
 //																						printf_flag=1;
-			
+			 
 		start=1;
 	} 
   /* USER CODE END 3 */
@@ -1547,6 +1582,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 									else{
 										Uart2_RxBuff[Uart2_Rx_Cnt++] = aRxBuffer2;   //接收数据转存
 										if(aRxBuffer2==0x06)	time_out=0;
+										if(aRxBuffer2==0x05){
+															I_flag=1;
+															Uart2_Rx_Cnt = 0;
+															memset(Uart2_RxBuff,0x00,sizeof(Uart2_RxBuff));}
+										if(aRxBuffer2==0x04){
+															delta_Iflag=1;
+															Uart2_Rx_Cnt = 0;
+															memset(Uart2_RxBuff,0x00,sizeof(Uart2_RxBuff));}
+										//if(I_flag)
+										
+											
 										if((Uart2_RxBuff[Uart2_Rx_Cnt-1] == 0x0A)&&(Uart2_RxBuff[Uart2_Rx_Cnt-2] == 0x0D)) //判断结束位
 										{	
 //											HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);
@@ -1563,7 +1609,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 									{
 										Uart3_Rx_Cnt = 0;
 										memset(Uart3_RxBuff,0x00,sizeof(Uart3_RxBuff));
-										HAL_UART_Transmit(&huart2, (uint8_t *)&cAlmStr, sizeof(cAlmStr),0xFFFF);	
+										HAL_UART_Transmit(&huart3, (uint8_t *)&cAlmStr, sizeof(cAlmStr),0xFFFF);	
 									}
 									else
 									{
@@ -1572,7 +1618,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 										if(aRxBuffer3==0x06){	printf_flag=0;
 																					HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_SET);
 																					for (i=0;i<1024;i++){printf("%f\t%f\r\n",adc1[i],adc0[i]);}
-																					printf("相似度：%f\t漏电值1：%f\t漏电值0：%f\t突变值：%i\r\n",cos0,I1/adc2i,I0/adc2i,har/adc2i);
+																					printf("相似度：%f\t漏电值1：%f\t漏电值0：%f\t突变值：%i\r\n",cos0,I1,I0,har);
 																					HAL_GPIO_WritePin(RE_GPIO_Port,RE_Pin,GPIO_PIN_RESET);
 																					printf_flag=1;
 																					}
@@ -1608,21 +1654,31 @@ void filter_A(int * a){for(i=1;i<1020;i++){
 		
 }
 //********************************************电流计算***************************************//
-float get_I(int* a,int len){
-		int temp=0;
-		int zero=0;
-		int b=0;
-		for (int i=0;i<len;i++){
-			temp+=a[i];
-		}
-		zero=temp/len;
+float get_I(int* a,int len,int z){
+//		int temp=0;
+//		int zero=0;
+		long long b=0;
+//		for (int i=0;i<len;i++){
+//			temp+=a[i];
+//		}
+//		zero=temp/len;
 		for(int i=0;i<len;i++){
-			b+=abs(zero-a[i]);}
-		return (b*1.111)/(len*adc2i);
+			b+=((a[i]-z)*(a[i]-z));}
+		//printf("%lld\r\n",b);
+		return (sqrtf((float)b/len))*1.56;    //(b*1.111)/(1024*adc2i);
+	
+//	int b=0;
+//	for(int i=0;i<len;i++)b+=abs(a[i]-zero);
+//	return b*1.111*1.4/1024;
+//	
 	
 }
 
-
+int get_zero(int*a,int len){
+	int temp=0;
+	for(int i=0;i<len;i++)temp+=a[i];
+	return (int)(temp/len);
+}
 
 
 //****************************************get  ADC***************************************//
